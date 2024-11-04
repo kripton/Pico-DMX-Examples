@@ -8,34 +8,23 @@
 #include <ctype.h>
 
 
-const uint DMXOUT1_PIN = 6;
-const uint DMXIN1_PIN = 7;
-const uint DMXENA1_PIN = 3;
+//const uint DMXOUT1_PIN = 6;
+const uint DMXIN1_PIN = 6;
+const uint DMXENA1_PIN = 15;
 
-const uint DMXOUT2_PIN = 0;
-const uint DMXIN2_PIN = 2;
-const uint DMXENA2_PIN = 1;
+const uint DMXOUT2_PIN = 7;
+//const uint DMXIN2_PIN = 2;
+const uint DMXENA2_PIN = 17;
 
-const uint OUTPUT_PIN1 = 15;
-const uint OUTPUT_PIN2 = 16;
-const uint OUTPUT_PIN3 = 17;
-const uint OUTPUT_PIN4 = 18;
-const uint LED_PIN_DMXPORTA = 24;
-const uint LED_PIN_DMXPORTB = 23;
-const uint LED_PIN_INDICATOR = 25;
-const uint INPUT_PIN1 = 8;
-const uint INPUT_PIN2 = 9;
-const uint INPUT_PIN3 = 10;
-const uint INPUT_PIN4 = 11;
+const uint LED_PIN_DMXPORTA = 25;
+//const uint LED_PIN_DMXPORTB = 23;
+//const uint LED_PIN_INDICATOR = 25;
 
-
-DmxOutput dmxOutput1;
 DmxOutput dmxOutput2;
 DmxInput dmxInput1;
-DmxInput dmxInput2;
 #define UNIVERSE_LENGTH 512
-#define INPUT_TIMEOUT_MS 3000
-#define OUTPUT_TIMEOUT_MS 3000
+#define INPUT_TIMEOUT_MS 500
+#define OUTPUT_TIMEOUT_MS 500
 
 uint8_t dmxDataA1[UNIVERSE_LENGTH + 1];
 uint8_t dmxDataB1[UNIVERSE_LENGTH + 1];
@@ -46,8 +35,6 @@ bool outputPrimaryBuffer2;
 
 uint8_t dmxInputBuffer1[DMXINPUT_BUFFER_SIZE(512)];
 uint8_t dmxInputBuffer2[DMXINPUT_BUFFER_SIZE(512)];
-
-uint16_t mapping[512];
 
 uint32_t timer_counter;
 bool ledValue;
@@ -70,6 +57,7 @@ bool inputActive2;
 
 
 bool repeating_timer_callback(struct repeating_timer *t) {
+    printf("TIMER. inputActive1: %d\n", inputActive1);
 
     clock_t now = time_us_64();
     int flashSpeed = 0;
@@ -113,16 +101,16 @@ bool repeating_timer_callback(struct repeating_timer *t) {
 
     if (led_mod_value == 0)
     {
-        gpio_put(LED_PIN_INDICATOR, 0);
+        //gpio_put(LED_PIN_INDICATOR, 0);
     }
     else if (led_mod_value == 1)
     {
-        gpio_put(LED_PIN_INDICATOR, 1);
+        //gpio_put(LED_PIN_INDICATOR, 1);
     }
     else if (timer_counter % (led_mod_value - 1) == 0)
     {
         ledValue = !ledValue;
-        gpio_put(LED_PIN_INDICATOR, ledValue);
+        //gpio_put(LED_PIN_INDICATOR, ledValue);
     }
 
     if (ledA_mod_value == 0)
@@ -138,7 +126,7 @@ bool repeating_timer_callback(struct repeating_timer *t) {
         ledAValue = !ledAValue;
         gpio_put(LED_PIN_DMXPORTA, ledAValue);
     }
-
+/*
     if (ledB_mod_value == 0)
     {
         gpio_put(LED_PIN_DMXPORTB, 0);
@@ -152,12 +140,20 @@ bool repeating_timer_callback(struct repeating_timer *t) {
         ledBValue = !ledBValue;
         gpio_put(LED_PIN_DMXPORTB, ledBValue);
     }
+*/
+
+    // SEND
+    if (!dmxOutput2.busy()) {
+        dmxOutput2.write(outputPrimaryBuffer2 == 0 ? dmxDataA2 : dmxDataB2, UNIVERSE_LENGTH + 1);
+    }
 
     return true;
 }
 
 void __isr dmxDataReceived(DmxInput* instance) {
      // A DMX frame has been received
+
+    printf("DMX RX. PacketLen: %d\n", instance->_last_packet_length);
 
     if (instance == &dmxInput1 && inputActive1)
     {
@@ -170,10 +166,10 @@ void __isr dmxDataReceived(DmxInput* instance) {
             ledA_mod_value = 3;
 
             // Have channel 1 control Output 1, 2=2, 3=3, 4=4
-            gpio_put(OUTPUT_PIN1, dmxInputBuffer1[1] != 0);
-            gpio_put(OUTPUT_PIN2, dmxInputBuffer1[2] != 0);
-            gpio_put(OUTPUT_PIN3, dmxInputBuffer1[3] != 0);
-            gpio_put(OUTPUT_PIN4, dmxInputBuffer1[4] != 0);
+            //gpio_put(OUTPUT_PIN1, dmxInputBuffer1[1] != 0);
+            //gpio_put(OUTPUT_PIN2, dmxInputBuffer1[2] != 0);
+            //gpio_put(OUTPUT_PIN3, dmxInputBuffer1[3] != 0);
+            //gpio_put(OUTPUT_PIN4, dmxInputBuffer1[4] != 0);
         }
     }
 }
@@ -190,52 +186,63 @@ int main() {
     printf("--==Init==--\n");
 
     // Init all inputs and outputs
-    gpio_init(INPUT_PIN1);
-    gpio_init(INPUT_PIN2);
-    gpio_init(INPUT_PIN3);
-    gpio_init(INPUT_PIN4);
-    gpio_init(OUTPUT_PIN1);
-    gpio_init(OUTPUT_PIN2);
-    gpio_init(OUTPUT_PIN3);
-    gpio_init(OUTPUT_PIN4);
+    //gpio_init(INPUT_PIN1);
+    //gpio_init(INPUT_PIN2);
+    //gpio_init(INPUT_PIN3);
+    //gpio_init(INPUT_PIN4);
+    //gpio_init(OUTPUT_PIN1);
+    //gpio_init(OUTPUT_PIN2);
+    //gpio_init(OUTPUT_PIN3);
+    //gpio_init(OUTPUT_PIN4);
     gpio_init(LED_PIN_DMXPORTA);
-    gpio_init(LED_PIN_DMXPORTB);
-    gpio_init(LED_PIN_INDICATOR);
+    //gpio_init(LED_PIN_DMXPORTB);
+    //gpio_init(LED_PIN_INDICATOR);
 
-    gpio_set_dir(INPUT_PIN1, GPIO_IN);
-    gpio_set_dir(INPUT_PIN2, GPIO_IN);
-    gpio_set_dir(INPUT_PIN3, GPIO_IN);
-    gpio_set_dir(INPUT_PIN4, GPIO_IN);
-    gpio_set_dir(OUTPUT_PIN1, GPIO_OUT);
-    gpio_set_dir(OUTPUT_PIN2, GPIO_OUT);
-    gpio_set_dir(OUTPUT_PIN3, GPIO_OUT);
-    gpio_set_dir(OUTPUT_PIN4, GPIO_OUT);
+    //gpio_set_dir(INPUT_PIN1, GPIO_IN);
+    //gpio_set_dir(INPUT_PIN2, GPIO_IN);
+    //gpio_set_dir(INPUT_PIN3, GPIO_IN);
+    //gpio_set_dir(INPUT_PIN4, GPIO_IN);
+    //gpio_set_dir(OUTPUT_PIN1, GPIO_OUT);
+    //gpio_set_dir(OUTPUT_PIN2, GPIO_OUT);
+    //gpio_set_dir(OUTPUT_PIN3, GPIO_OUT);
+    //gpio_set_dir(OUTPUT_PIN4, GPIO_OUT);
     gpio_set_dir(LED_PIN_DMXPORTA, GPIO_OUT);
-    gpio_set_dir(LED_PIN_DMXPORTB, GPIO_OUT);
-    gpio_set_dir(LED_PIN_INDICATOR, GPIO_OUT);
+    //gpio_set_dir(LED_PIN_DMXPORTB, GPIO_OUT);
+    //gpio_set_dir(LED_PIN_INDICATOR, GPIO_OUT);
 
     // Set initial state
-    gpio_put(OUTPUT_PIN1, 0);
-    gpio_put(OUTPUT_PIN2, 0);
-    gpio_put(OUTPUT_PIN3, 0);
-    gpio_put(OUTPUT_PIN4, 0);
-    gpio_put(LED_PIN_DMXPORTA, 0);
-    gpio_put(LED_PIN_DMXPORTB, 0);
-    gpio_put(LED_PIN_INDICATOR, 0);
+    //gpio_put(OUTPUT_PIN1, 0);
+    //gpio_put(OUTPUT_PIN2, 0);
+    //gpio_put(OUTPUT_PIN3, 0);
+    //gpio_put(OUTPUT_PIN4, 0);
+    gpio_put(LED_PIN_DMXPORTA, 1);
+    //gpio_put(LED_PIN_DMXPORTB, 0);
+    //gpio_put(LED_PIN_INDICATOR, 0);
 
     // Init DMX pins
     gpio_init(DMXENA1_PIN);
     gpio_set_dir(DMXENA1_PIN, GPIO_OUT);
-    gpio_init(DMXENA2_PIN);
-    gpio_set_dir(DMXENA2_PIN, GPIO_OUT);
+    
+    //// Set the RS-485 driver to TX so we can LOOPBACK-test pin 7 (DmxOutput)
+    //// to pin 6 (DmxInput) without the RS-485 driver driving the line as well
+    //// (as would be the case in the regular RX scenario since RX and TX is
+    //// on the same pin in our case)
+    //gpio_put(DMXENA1_PIN, 1);
+
+    //gpio_init(DMXENA2_PIN);
+    //gpio_set_dir(DMXENA2_PIN, GPIO_OUT);
 
     // Start DMX outputs. Use pio1 since pio0 is used by the inputs
-    dmxOutput1.begin(DMXOUT1_PIN, pio1);
-    dmxOutput2.begin(DMXOUT2_PIN, pio1);
+    DmxOutput::return_code reto;
+    //dmxOutput1.begin(DMXOUT1_PIN, pio1);
+    reto = dmxOutput2.begin(DMXOUT2_PIN, pio0);
 
     // Start DMX inputs
-    dmxInput1.begin(DMXIN1_PIN, 512);
-    dmxInput2.begin(DMXIN2_PIN, 512);
+    DmxInput::return_code reti;
+    reti = dmxInput1.begin(DMXIN1_PIN, 512);
+    //dmxInput2.begin(DMXIN2_PIN, 512);
+
+    printf("reto: %d, reti: %d\n", reto, reti);
 
     // Clear buffers
     memset(dmxDataA1, 0, sizeof(dmxDataA1));
@@ -243,22 +250,22 @@ int main() {
     memset(dmxDataA2, 0, sizeof(dmxDataA2));
     memset(dmxDataB2, 0, sizeof(dmxDataB2));
 
+    // Set initial configuration
+    inputActive1 = true;
+    //outputActive1 = false;
+    //inputActive2 = false;
+    outputActive2 = true;
+
     // Start send timer
     struct repeating_timer timer;
     add_repeating_timer_ms(-25, repeating_timer_callback, NULL, &timer);
 
     // Wire up DMX input callbacks
     dmxInput1.read_async(dmxInputBuffer1, dmxDataReceived);
-    dmxInput2.read_async(dmxInputBuffer2, dmxDataReceived);
-
-    // Set initial configuration
-    inputActive1 = true;
-    outputActive1 = false;
-    inputActive2 = false;
-    outputActive2 = false;
+    //dmxInput2.read_async(dmxInputBuffer2, dmxDataReceived);
 
     while (1)
     {
         tight_loop_contents();
-    }    
+    }
 }
